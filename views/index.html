@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html>
+ <head>
+  <title> new document </title>
+  <meta http-equiv="content-type" content="text/html;charset=utf-8">
+  <script type="text/javascript"></script>
+  <style>
+  html,body{height:100%}
+  body,div,ul,ol,p,li,form,table,input,table{padding:0;margin:0}
+  #container{
+    width:1000px;margin:0 auto;display:flex;flex-direction:column;font-size:12px;color:#333
+  }
+  .table{
+    width:100%;border:1px solid #333
+  }
+  th,td{
+    text-align:left;
+    padding-left:10px;
+  }
+  th{
+    background:#ccc;
+  }
+  .row{
+    display:flex;flex-direction:row;justify-content:space-between;line-height:30px;padding:0 5px;
+  }
+  .col{padding-left:10px;width:100%}
+  .col50{
+    width:50%;
+  }
+  .button{
+    padding:5px 10px;
+  }
+  .btn{
+    cursor:pointer;
+    padding:2px; 5px;
+    text-decoration:underline
+  }
+  .form-control{
+    line-height:24px;
+    padding-left:10px;
+    width:200px;
+  }
+  .warn{
+    color:red
+  }
+  #form{
+    display:none
+  }
+  </style>
+  <script src="/js/jquery-3.2.1.min.js"></script>
+ </head>
+
+ <body>
+ <div id="container">
+  <div class="row">
+    <div class="col">
+      <input type="button" value="new" id="btnNew" class="button">
+    </div>
+  </div>
+  <div class="row">
+    <div class="col">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>username</th>
+            <th>email</th>
+            <th>birthday</th>
+            <th>action</th>
+          </tr>
+        </thead>
+        <tbody id="user_list">
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="row" id="form">
+    <div class="col">
+      <div class="row">
+        <div class="col col50">
+          <div>用户名</div>
+          <div><input type="text" id="username" maxlength=20 placeholder="username" class="form-control"><span class="warn"></span></div>
+        </div>
+        <div class="col col50">
+          <div>email</div>
+          <div><input type="email" id="email" placeholder="email" maxlength=50 class="form-control"><span class="warn"></span></div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col col50">
+          <div>birthday</div>
+          <div><input type="date" id="birthday" class="form-control"><span class="warn"></span></div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col">
+          <input type="hidden" id="userid" value=""/>
+          <input type="button" id="btnSave" value="save" class="button">
+        </div>
+      </div>
+    </div>
+  </div>
+ </div>
+ <script type="text/javascript">
+ <!--
+$(function(){
+  $.get("/api/user", function(result){
+    if(result.errcode==0){
+      result.data.forEach(function(user){
+        var row = $('<tr><td>'+user.username+'</td><td>'+user.email+'</td><td>'+user.birthday+'</td><td><span class="edit btn">edit</span><span class="delete btn">delete</span></td></tr>').data('user',user);
+        $('#user_list').append(row)
+      })
+    }else{
+      console.log(result.errmsg)
+    }
+
+  })
+
+  $('#user_list').delegate('span.edit','click',function(e){
+    var self = $(e.target);
+    var user = self.parent().parent().data('user')
+    $('#username').val(user.username).attr('readonly',true)
+    $('#email').val(user.email)
+    $('#birthday').val(user.birthday.replace(/\//g,'-'));
+    $('#userid').val(user.userid);
+    $('#form').show();
+  })
+
+  $('#user_list').delegate('span.delete','click',function(e){
+    var self = $(e.target);
+    var user = self.parent().parent().data('user')
+    var username = user.username
+    if(confirm('Are you sure to delete '+username+'?')){
+      $.ajax({
+        headers: {
+          'Accept': 'application/json; charset=utf-8',
+          'X-HTTP-Method-Override': 'DELETE'
+        },
+        method:'POST',
+        url:'/api/user/'+username,
+        data:{},
+        dataType:'json',
+        success:function(result, status, xhr){
+          if(result.errcode==0){
+            $('#user_list').children().each(function(index, row){
+              var user = $(row).data('user')
+              if(user && user.username==username){
+                $(row).remove()
+              }
+            })
+          }else{
+            warn(result.errmsg)
+          }
+        }
+      });
+    }
+  })
+
+  $('#btnSave').on('click', function(){
+    var username=$('#username').val();
+    var email=$('#email').val();
+    var birthday=$('#birthday').val();
+    var userid=$('#userid').val();
+    if(username==''){
+      $('#username').siblings('.warn').text('username should not be empty!')
+      return
+    }
+    if(email==''){
+      $('#email').siblings('.warn').text('email should not be empty!')
+      return
+    }
+    if(birthday==''){
+      $('#birthday').siblings('.warn').text('birthday should not be empty!')
+      return
+    }
+    if(userid!=""){
+        $.ajax({
+          headers: {
+            'Accept': 'application/json; charset=utf-8',
+            'X-HTTP-Method-Override': 'PUT'
+          },
+          method:'POST',
+          url:'/api/user/'+username,
+          data:{email:email,birthday:birthday},
+          dataType:'json',
+          success:function(result, status, xhr){
+            if(result.errcode==0){
+              $('#user_list').children().each(function(index, row){
+                var user = $(row).data('user')
+                if(user && user.username==username){
+                  row.childNodes[1].innerText=email
+                  row.childNodes[2].innerText=birthday
+                  user.email = email;
+                  user.birthday = birthday;
+                }
+              })
+              resetForm(1);
+            }else{
+              warn(result.errmsg)
+            }
+          }
+        });
+    }else{
+      $.post("/api/user", {username:username, email:email, birthday:birthday},function(result){
+        if(result.errcode==0){
+          var user = result.data;
+          var row = $('<tr><td>'+user.username+'</td><td>'+user.email+'</td><td>'+user.birthday+'</td><td><span class="edit btn">edit</span><span class="delete btn">delete</span></td></tr>').data('user',user);
+          $('#user_list').append(row);
+          resetForm(1);
+        }else{
+          warn(result.errmsg)
+        }
+        
+      })
+    }
+  })
+
+  $('#btnNew').on('click', function(){
+    resetForm();
+  })
+
+  function resetForm(flag){
+    $('#form .warn').text('');
+    $('#username').val('').attr('readonly',false);
+    $('#email').val('');
+    $('#birthday').val('');
+    $('#userid').val("");
+    flag?$('#form').hide():$('#form').show();
+  }
+
+  function warn(errmsg){
+    alert(errmsg)
+  }
+})
+ //-->
+ </script>
+ </body>
+</html>
